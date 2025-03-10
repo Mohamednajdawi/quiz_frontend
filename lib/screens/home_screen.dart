@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'analytics_screen.dart';
 import 'available_quizzes_screen.dart';
 import 'pdf_quiz_screen.dart';
+import 'profile_screen.dart';
 
 class FootballPlayer {
   final String name;
@@ -530,6 +531,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+                      ),
+                    ),
+                    _QuickActionButton(
+                      icon: Icons.person_rounded,
+                      label: 'Profile',
+                      description: 'View your profile',
+                      gradient: [Colors.teal.shade400, Colors.teal.shade700],
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ProfileScreen()),
                       ),
                     ),
                   ],
