@@ -137,25 +137,49 @@ class QuizResultService {
   Future<List<QuizResult>> getQuizHistory() async {
     final userId = _getCurrentUserId();
     if (userId == null) {
+      print('Error: User not authenticated when fetching quiz history');
       throw Exception('User not authenticated');
     }
 
     return _withRetry(() async {
-      final response = await http.get(
-        Uri.parse('$baseUrl/user/$userId/quiz-history'),
-        headers: {'Content-Type': 'application/json'},
-      );
+      print('Fetching quiz history for user: $userId');
+      try {
+        final response = await http.get(
+          Uri.parse('$baseUrl/user/$userId/quiz-history'),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            print('Quiz history request timed out');
+            throw Exception('Request timed out');
+          },
+        );
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed to get quiz history: ${response.body}');
+        print('Quiz history response status: ${response.statusCode}');
+        
+        if (response.statusCode != 200) {
+          print('Error response body: ${response.body}');
+          throw Exception('Failed to get quiz history: ${response.body}');
+        }
+
+        final responseData = jsonDecode(response.body);
+        print('Successfully decoded quiz history response');
+        
+        if (!responseData.containsKey('quiz_history')) {
+          print('Error: quiz_history key not found in response: $responseData');
+          return [];
+        }
+        
+        final List<dynamic> historyList = responseData['quiz_history'];
+        print('Found ${historyList.length} quiz history items');
+        
+        return historyList
+            .map((item) => QuizResult.fromHistoryJson(item))
+            .toList();
+      } catch (e) {
+        print('Exception in getQuizHistory: $e');
+        rethrow;
       }
-
-      final responseData = jsonDecode(response.body);
-      final List<dynamic> historyList = responseData['quiz_history'];
-      
-      return historyList
-          .map((item) => QuizResult.fromHistoryJson(item))
-          .toList();
     });
   }
 
@@ -163,20 +187,38 @@ class QuizResultService {
   Future<Map<String, dynamic>> getRawQuizHistory() async {
     final userId = _getCurrentUserId();
     if (userId == null) {
+      print('Error: User not authenticated when fetching raw quiz history');
       throw Exception('User not authenticated');
     }
 
     return _withRetry(() async {
-      final response = await http.get(
-        Uri.parse('$baseUrl/user/$userId/quiz-history'),
-        headers: {'Content-Type': 'application/json'},
-      );
+      print('Fetching raw quiz history for user: $userId');
+      try {
+        final response = await http.get(
+          Uri.parse('$baseUrl/user/$userId/quiz-history'),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            print('Raw quiz history request timed out');
+            throw Exception('Request timed out');
+          },
+        );
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed to get quiz history: ${response.body}');
+        print('Raw quiz history response status: ${response.statusCode}');
+        
+        if (response.statusCode != 200) {
+          print('Error response body: ${response.body}');
+          throw Exception('Failed to get quiz history: ${response.body}');
+        }
+
+        final responseData = jsonDecode(response.body);
+        print('Successfully decoded raw quiz history response');
+        return responseData;
+      } catch (e) {
+        print('Exception in getRawQuizHistory: $e');
+        rethrow;
       }
-
-      return jsonDecode(response.body);
     });
   }
 

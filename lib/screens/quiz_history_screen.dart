@@ -36,29 +36,51 @@ class _QuizHistoryScreenState extends State<QuizHistoryScreen> with SingleTicker
   Future<List<QuizResult>> _fetchQuizHistory() async {
     // Ensure the user is logged in
     if (_auth.currentUser == null) {
+      print('User not logged in when fetching quiz history');
       return [];
     }
     
     try {
+      print('Starting quiz history fetch process');
+      
       // First, sync the user profile
       await _quizResultService.syncUserProfile();
+      print('User profile synced successfully');
       
       // Then get quiz history
+      print('Fetching quiz history from service');
       final response = await _quizResultService.getQuizHistory();
+      print('Quiz history fetched: ${response.length} items');
       
       // Extract statistics if available
-      Map<String, dynamic> responseData = await _quizResultService.getRawQuizHistory();
-      if (responseData.containsKey('statistics')) {
-        setState(() {
-          _statistics = responseData['statistics'];
-        });
+      try {
+        Map<String, dynamic> responseData = await _quizResultService.getRawQuizHistory();
+        print('Raw quiz history fetched successfully');
+        
+        if (responseData.containsKey('statistics')) {
+          setState(() {
+            _statistics = responseData['statistics'];
+          });
+          print('Statistics extracted: $_statistics');
+        } else {
+          print('No statistics found in response');
+        }
+      } catch (statsError) {
+        print('Error fetching statistics: $statsError');
+        // Continue even if statistics fail
       }
       
       return response;
     } catch (e) {
-      print('Error fetching quiz history: $e');
+      print('Error in _fetchQuizHistory: $e');
       return [];
     }
+  }
+  
+  void _refreshQuizHistory() {
+    setState(() {
+      _quizHistoryFuture = _fetchQuizHistory();
+    });
   }
   
   @override
@@ -66,6 +88,13 @@ class _QuizHistoryScreenState extends State<QuizHistoryScreen> with SingleTicker
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quiz History'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshQuizHistory,
+            tooltip: 'Refresh History',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -89,10 +118,20 @@ class _QuizHistoryScreenState extends State<QuizHistoryScreen> with SingleTicker
       future: _quizHistoryFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Loading quiz history...'),
+              ],
+            ),
+          );
         }
         
         if (snapshot.hasError) {
+          print('Error in quiz history FutureBuilder: ${snapshot.error}');
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -104,18 +143,17 @@ class _QuizHistoryScreenState extends State<QuizHistoryScreen> with SingleTicker
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  snapshot.error.toString(),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Text(
+                    snapshot.error.toString(),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _quizHistoryFuture = _fetchQuizHistory();
-                    });
-                  },
+                  onPressed: _refreshQuizHistory,
                   icon: const Icon(Icons.refresh),
                   label: const Text('Try Again'),
                 ),
@@ -125,6 +163,7 @@ class _QuizHistoryScreenState extends State<QuizHistoryScreen> with SingleTicker
         }
         
         final quizHistory = snapshot.data ?? [];
+        print('Rendering quiz history with ${quizHistory.length} items');
         
         if (quizHistory.isEmpty) {
           return Center(
@@ -142,6 +181,12 @@ class _QuizHistoryScreenState extends State<QuizHistoryScreen> with SingleTicker
                   'Complete some quizzes to see your history here.',
                   style: Theme.of(context).textTheme.bodyLarge,
                   textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _refreshQuizHistory,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Refresh'),
                 ),
               ],
             ),
